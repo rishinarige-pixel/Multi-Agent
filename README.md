@@ -70,10 +70,16 @@ relative to the project, regardless of the caller's current directory.
 
 All runtime settings are in `config.yaml`: provider, model, `max_rounds` (0–2),
 `max_model_calls` (1–100, default 16), `output_folder` (must stay under `output/`),
-timeout and search result count. Every model attempt, including retries, counts
+`timeout_seconds` (1–1800 seconds, default 60) and search result count.
+Every model attempt, including retries, counts
 toward the shared budget. Normal maximum: 12 successful calls for five subtasks
 and two revisions. Failed calls get two retries, then stop with an actionable error;
 tool failures get two retries and research continues with available evidence.
+Each model attempt prints and logs its elapsed seconds (excluding retry backoff).
+Failures print and log the HTTP status and response body, or exception type and
+message; the final error retains the underlying details. The configured OpenAI
+key is redacted from these diagnostics. Provider error bodies may contain task
+content, so treat logs as potentially sensitive.
 No search results means an explicit lack-of-evidence note, not invented research.
 Unresolved review concerns are appended to the final report when rounds run out.
 
@@ -102,7 +108,7 @@ To run a deterministic full CLI demonstration and save a labeled sample report:
 python tests/run_offline_example.py
 ```
 
-Validation in the build environment: 18 tests passed, dependency checks passed,
+Validation in the build environment: 27 tests passed, dependency checks passed,
 and the offline CLI generated a report and log. A live model run could not finish:
 there was no OpenAI key or Ollama service. Live DuckDuckGo search failed after
 retries and the documentation fetch failed DNS resolution in this environment.

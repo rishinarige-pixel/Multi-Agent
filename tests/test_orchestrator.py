@@ -75,3 +75,16 @@ def test_output_escape(monkeypatch, tmp_path):
     monkeypatch.setattr(main, 'ROOT', tmp_path)
     with pytest.raises(ValueError, match='inside'):
         main.load_config()
+
+
+@pytest.mark.parametrize('timeout, valid', [(1, True), (300, True), (1800, True),
+                                          (0, False), (1801, False)])
+def test_timeout_range(monkeypatch, tmp_path, timeout, valid):
+    config = (main.ROOT / 'config.yaml').read_text().replace('timeout_seconds: 60', f'timeout_seconds: {timeout}')
+    (tmp_path / 'config.yaml').write_text(config)
+    monkeypatch.setattr(main, 'ROOT', tmp_path)
+    if valid:
+        assert main.load_config()[0]['timeout_seconds'] == timeout
+    else:
+        with pytest.raises(ValueError, match='timeout_seconds.*1800'):
+            main.load_config()

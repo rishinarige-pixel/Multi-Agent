@@ -16,7 +16,7 @@ def load_config():
     if config['provider'] not in ('openai', 'ollama'):
         raise ValueError('provider must be openai or ollama')
     for key, minimum, maximum in [('max_rounds', 0, 2), ('max_model_calls', 1, 100),
-                                  ('search_results', 1, 5), ('timeout_seconds', 1, 300)]:
+                                  ('search_results', 1, 5), ('timeout_seconds', 1, 1800)]:
         if type(config[key]) is not int or not minimum <= config[key] <= maximum:
             raise ValueError(f'Invalid {key}: expected {minimum}–{maximum}')
     if not isinstance(config['model'], str) or not config['model'].strip():

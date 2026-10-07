@@ -45,3 +45,46 @@ def test_missing_key(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     with pytest.raises(ModelError, match='OPENAI_API_KEY'):
         LLM(config(provider='openai'), logging.getLogger('test')).complete('s', 'p')
+
+
+@pytest.mark.parametrize('http_failure', [False, True])
+def test_failure_details_and_timing(monkeypatch, capsys, caplog, http_failure):
+    monkeypatch.setattr('llm.time.sleep', lambda _: None)
+    monkeypatch.setattr('llm.time.perf_counter', Mock(side_effect=[0, 1.25, 2, 3.25, 4, 5.25]))
+    if http_failure:
+        response = httpx.Response(429, text='rate limit exceeded',
+                                  request=httpx.Request('POST', 'https://example.com'))
+        error = httpx.HTTPStatusError('failure', request=response.request, response=response)
+        expected = 'HTTP 429: rate limit exceeded'
+    else:
+        error = httpx.ConnectError('connection refused')
+        expected = 'ConnectError: connection refused'
+    monkeypatch.setattr('llm.httpx.post', Mock(side_effect=error))
+    with caplog.at_level(logging.INFO), pytest.raises(ModelError, match=expected):
+        LLM(config(), logging.getLogger('test')).complete('s', 'p')
+    terminal = capsys.readouterr().out
+    assert terminal.count(expected) == 3
+    assert terminal.count('took 1.25 seconds') == 3
+    assert caplog.text.count(expected) == 3
+    assert caplog.text.count('took 1.25 seconds') == 3
+
+
+def test_success_timing(monkeypatch, capsys, caplog):
+    monkeypatch.setattr('llm.time.perf_counter', Mock(side_effect=[10, 12.5]))
+    response = Mock()
+    response.json.return_value = {'message': {'content': 'ok'}}
+    monkeypatch.setattr('llm.httpx.post', Mock(return_value=response))
+    with caplog.at_level(logging.INFO):
+        assert LLM(config(), logging.getLogger('test')).complete('s', 'p') == 'ok'
+    assert 'took 2.50 seconds' in capsys.readouterr().out
+    assert 'took 2.50 seconds' in caplog.text
+
+
+def test_error_redacts_key(monkeypatch, capsys, caplog):
+    monkeypatch.setenv('OPENAI_API_KEY', 'secret-test-key')
+    monkeypatch.setattr('llm.time.sleep', lambda _: None)
+    monkeypatch.setattr('llm.httpx.post', Mock(side_effect=httpx.ConnectError('secret-test-key rejected')))
+    with pytest.raises(ModelError) as caught:
+        LLM(config(provider='openai'), logging.getLogger('test')).complete('s', 'p')
+    assert 'secret-test-key' not in str(caught.value) + capsys.readouterr().out + caplog.text
+    assert '[REDACTED]' in str(caught.value)

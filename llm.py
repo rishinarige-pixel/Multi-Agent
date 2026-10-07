@@ -17,6 +17,8 @@ class LLM:
             if self.calls >= self.config['max_model_calls']:
                 raise ModelError('Total model-call limit reached.')
             self.calls += 1
+            started = time.perf_counter()
+            key = None
             try:
                 messages = [{'role': 'system', 'content': system},
                             {'role': 'user', 'content': prompt}]
@@ -44,7 +46,20 @@ class LLM:
             except ModelError:
                 raise
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as exc:
-                self.logger.warning('Model attempt %s failed (%s)', attempt + 1, type(exc).__name__)
+                if isinstance(exc, httpx.HTTPStatusError):
+                    detail = f'HTTP {exc.response.status_code}: {exc.response.text}'
+                else:
+                    detail = f'{type(exc).__name__}: {exc}'
+                if key:
+                    detail = detail.replace(key, '[REDACTED]')
+                message = f'Model call {self.calls} (attempt {attempt + 1}/3) failed: {detail}'
+                print(f'[LLM] {message}', flush=True)
+                self.logger.warning('%s', message)
                 if attempt == 2:
-                    raise ModelError('Model request failed after three attempts. Check provider, model and connectivity.') from exc
-                time.sleep(2 ** attempt)
+                    raise ModelError(f'Model request failed after three attempts: {detail}') from exc
+            finally:
+                elapsed = time.perf_counter() - started
+                message = f'Model call {self.calls} took {elapsed:.2f} seconds'
+                print(f'[LLM] {message}', flush=True)
+                self.logger.info('%s', message)
+            time.sleep(2 ** attempt)

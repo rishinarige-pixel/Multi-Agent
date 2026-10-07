@@ -2,9 +2,19 @@ import json
 import logging
 from unittest.mock import Mock
 import pytest
+import yaml
 from orchestrator import Orchestrator
 from agents.planner import Planner
 import main
+
+
+def write_config(directory, **overrides):
+    """Use explicit test settings, independent of the user's local config."""
+    config = {'provider': 'ollama', 'model': 'test', 'max_rounds': 2,
+              'max_model_calls': 16, 'output_folder': 'output',
+              'timeout_seconds': 60, 'search_results': 1}
+    config.update(overrides)
+    (directory / 'config.yaml').write_text(yaml.safe_dump(config), encoding='utf-8')
 
 
 def setup_web(monkeypatch):
@@ -38,7 +48,7 @@ def test_invalid_plan():
 
 def test_cli_writes_report_and_log(monkeypatch, tmp_path):
     setup_web(monkeypatch)
-    (tmp_path / 'config.yaml').write_text((main.ROOT / 'config.yaml').read_text())
+    write_config(tmp_path)
     monkeypatch.setattr(main, 'ROOT', tmp_path)
     monkeypatch.setattr('sys.argv', ['main.py', 'Research Python and write a 1-page report'])
     llm = Mock()
@@ -70,8 +80,7 @@ def test_no_evidence(monkeypatch):
 
 
 def test_output_escape(monkeypatch, tmp_path):
-    config = (main.ROOT / 'config.yaml').read_text().replace('output_folder: output', 'output_folder: ../escape')
-    (tmp_path / 'config.yaml').write_text(config)
+    write_config(tmp_path, output_folder='../escape')
     monkeypatch.setattr(main, 'ROOT', tmp_path)
     with pytest.raises(ValueError, match='inside'):
         main.load_config()
@@ -80,8 +89,7 @@ def test_output_escape(monkeypatch, tmp_path):
 @pytest.mark.parametrize('timeout, valid', [(1, True), (300, True), (1800, True),
                                           (0, False), (1801, False)])
 def test_timeout_range(monkeypatch, tmp_path, timeout, valid):
-    config = (main.ROOT / 'config.yaml').read_text().replace('timeout_seconds: 60', f'timeout_seconds: {timeout}')
-    (tmp_path / 'config.yaml').write_text(config)
+    write_config(tmp_path, timeout_seconds=timeout)
     monkeypatch.setattr(main, 'ROOT', tmp_path)
     if valid:
         assert main.load_config()[0]['timeout_seconds'] == timeout

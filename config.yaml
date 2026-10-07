@@ -1,0 +1,7 @@
+provider: ollama
+model: llama3.2
+max_rounds: 2
+max_model_calls: 16
+output_folder: output
+timeout_seconds: 60
+search_results: 3

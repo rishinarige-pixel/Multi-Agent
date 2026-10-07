@@ -26,8 +26,8 @@ def setup_web(monkeypatch):
 def responses(reviews):
     values = [json.dumps(['History', 'Features', 'Uses'])] + ['Notes https://docs.python.org/3/'] * 3
     for index, approved in enumerate(reviews):
-        values += [f'# Python report {index}\nSource: https://docs.python.org/3/',
-                   json.dumps({'approved': approved, 'feedback': '' if approved else 'Explain uses clearly.'})]
+        values += [f'# Python report {index}\n' + 'Evidence ' * 200 + '\nSource: https://docs.python.org/3/',
+                   'APPROVED\nClear report.' if approved else 'REVISE\nExplain uses clearly.']
     return values
 
 
@@ -38,7 +38,9 @@ def test_revision_rounds(monkeypatch, reviews, calls):
     llm.complete.side_effect = responses(reviews)
     report = Orchestrator(llm, logging.getLogger('test'), {'max_rounds': 2, 'search_results': 1}).run('Research Python')
     assert llm.complete.call_count == calls
-    assert ('Unresolved review concerns' in report) == (not reviews[-1])
+    assert report.startswith(f'# Python report {len(reviews) - 1}')
+    assert 'Explain uses clearly.' not in report
+    assert 'Unresolved review concerns' not in report
 
 
 def test_invalid_plan():
@@ -73,8 +75,8 @@ def test_cli_writes_report_and_log(monkeypatch, tmp_path):
 def test_no_evidence(monkeypatch):
     monkeypatch.setattr('tools.search.Search.run', lambda *args: None)
     llm = Mock()
-    llm.complete.side_effect = [json.dumps(['A', 'B', 'C']), '# Evidence unavailable',
-                               '{"approved": true, "feedback": ""}']
+    llm.complete.side_effect = [json.dumps(['A', 'B', 'C']), '# Evidence unavailable\n' + 'Uncertainty ' * 200,
+                               'APPROVED']
     report = Orchestrator(llm, logging.getLogger('test'), {'max_rounds': 0, 'search_results': 1}).run('task')
     assert 'unavailable' in report and llm.complete.call_count == 3
 

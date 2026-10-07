@@ -83,7 +83,13 @@ message; the final error retains the underlying details. The configured OpenAI
 key is redacted from these diagnostics. Provider error bodies may contain task
 content, so treat logs as potentially sensitive.
 No search results means an explicit lack-of-evidence note, not invented research.
-Unresolved review concerns are appended to the final report when rounds run out.
+Reviewer responses start with APPROVED or REVISE followed by feedback. Feedback
+is logged separately and never appended to the report. When revision rounds run
+out, the latest Writer draft is retained; unresolved concerns remain in the log.
+Before saving, the draft must contain a title heading (`# Title`) and at least
+200 whitespace-separated words. An invalid draft gets one additional Writer
+repair attempt (within the shared call budget), then fails without saving a report.
+This repair is a format/length check, not an additional reviewer revision round.
 
 The agents cannot execute commands, delete files, or choose arbitrary file paths.
 Only the CLI writes reports and logs. Tools only perform web reads; search queries
@@ -99,8 +105,8 @@ Logs contain shortened task and model content: do not put secrets in your task.
 Research uses at most two search results per subtask, at most 1,500 characters
 per fetched page, and notes under 120 words per subtask. Writer receives at most
 2,000 characters of notes (source URLs prioritized, space shared across subtasks)
-and targets about 400 words. Revision prompts cap the previous report at 2,500
-characters and feedback at 800. Reviewer also receives compact notes.
+and targets about 400 words. Revision prompts include the full previous draft and up to 800 characters of
+feedback, and explicitly request only the full revised Markdown report. Reviewer also receives compact notes.
 Ollama options in `config.yaml` default to `num_ctx: 4096` and
 `num_predict: 700`; the latter bounds generated tokens per attempt. These limits
 reduce CPU work but do not guarantee latency, complete coverage, or report length.
@@ -122,7 +128,7 @@ To run a deterministic full CLI demonstration and save a labeled sample report:
 python tests/run_offline_example.py
 ```
 
-Validation in the build environment: 34 tests passed, dependency checks passed,
+Validation in the build environment: 42 tests passed, dependency checks passed,
 and the offline CLI generated a report and log. A live model run could not finish:
 there was no OpenAI key or Ollama service. Live DuckDuckGo search failed after
 retries and the documentation fetch failed DNS resolution in this environment.

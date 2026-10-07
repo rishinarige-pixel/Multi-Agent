@@ -29,7 +29,7 @@ def test_plan_retry_line_fallback():
 
 def test_review_fences_and_fallback():
     llm = Mock()
-    llm.complete.side_effect = ['```json\n{"approved": true, "feedback": ""}\n```',
+    llm.complete.side_effect = ['APPROVED\nWell sourced.',
                                 'bad json', '- Add citations\n- Explain uncertainty']
     reviewer = Reviewer(llm, LOGGER)
     assert reviewer.run('task', 'report', [])['approved']
@@ -63,7 +63,8 @@ def test_writer_limits_with_revision():
     assert '400 words' in system
     assert len(data['notes']) <= 2000
     assert len(data['revision_feedback']) <= 800
-    assert len(data['previous_report']) <= 2500
+    assert data['previous_report'] == 'r' * 10000
+    assert 'Return only the full revised report in markdown.' in system
     assert all(f'https://example.com/{i}' in data['notes'] for i in range(3))
 
 

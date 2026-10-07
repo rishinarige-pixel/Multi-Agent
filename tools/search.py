@@ -5,7 +5,7 @@ from .base import Tool
 class Search(Tool):
     def __init__(self, logger, limit=3):
         super().__init__(logger)
-        self.limit = limit
+        self.limit = min(limit, 2)
 
     def execute(self, query):
         results = DDGS(timeout=20).text(query, max_results=self.limit, backend='duckduckgo')

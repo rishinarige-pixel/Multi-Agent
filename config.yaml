@@ -4,4 +4,6 @@ max_rounds: 2
 max_model_calls: 16
 output_folder: output
 timeout_seconds: 60
-search_results: 3
+search_results: 2
+num_ctx: 4096
+num_predict: 700

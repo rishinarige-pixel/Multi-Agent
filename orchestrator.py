@@ -23,4 +23,4 @@ class Orchestrator:
                 self.logger.warning('Revision limit reached: %s', review['feedback'][:1200])
                 print('[Reviewer] revision limit reached; remaining concerns included in report.')
                 return report + '\n\n## Unresolved review concerns\n\n' + review['feedback']
-            report = writer.run(task, {'research': notes, 'previous_report': report}, review['feedback'])
+            report = writer.run(task, notes, review['feedback'], previous_report=report)

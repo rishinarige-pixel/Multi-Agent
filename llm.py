@@ -34,6 +34,8 @@ class LLM:
                 payload = {'model': self.config['model'], 'messages': messages}
                 if provider == 'ollama':
                     payload['stream'] = False
+                    payload['options'] = {'num_ctx': self.config.get('num_ctx', 4096),
+                                          'num_predict': self.config.get('num_predict', 700)}
                 response = httpx.post(url, headers=headers, json=payload,
                                       timeout=self.config['timeout_seconds'])
                 response.raise_for_status()

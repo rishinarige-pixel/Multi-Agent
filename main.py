@@ -19,6 +19,10 @@ def load_config():
                                   ('search_results', 1, 5), ('timeout_seconds', 1, 1800)]:
         if type(config[key]) is not int or not minimum <= config[key] <= maximum:
             raise ValueError(f'Invalid {key}: expected {minimum}–{maximum}')
+    for key, default, maximum in [('num_ctx', 4096, 4096), ('num_predict', 700, 2048)]:
+        value = config.get(key, default)
+        if type(value) is not int or not 1 <= value <= maximum:
+            raise ValueError(f'Invalid {key}: expected 1–{maximum}')
     if not isinstance(config['model'], str) or not config['model'].strip():
         raise ValueError('model must be a nonempty string')
     output = (ROOT / config['output_folder']).resolve()

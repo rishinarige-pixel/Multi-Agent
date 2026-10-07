@@ -33,4 +33,4 @@ class Fetch(Tool):
         soup = BeautifulSoup(bytes(body), 'html.parser')
         for tag in soup(['script', 'style', 'nav', 'footer']):
             tag.decompose()
-        return soup.get_text(' ', strip=True)[:12000]
+        return soup.get_text(' ', strip=True)[:1500]

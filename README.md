@@ -1,6 +1,6 @@
 # Small multi-agent research CLI
 
-Python 3.11+; plain classes, no agent framework. Planner makes 3–5 subtasks,
+Python 3.11+; plain classes, no agent framework. Planner makes exactly 3 subtasks,
 Researcher searches DuckDuckGo and fetches public pages, Writer produces Markdown,
 and Reviewer requests specific corrections. There are at most two revisions.
 
@@ -43,7 +43,9 @@ python main.py "Research Python programming and write a 1-page report"
 `config.yaml` defaults to `provider: ollama`, `model: llama3.2`. Ollama must
 be listening at `http://localhost:11434`. A local model still needs Internet
 access for web research. Small models may produce malformed JSON; the CLI
-reports this clearly instead of silently accepting invalid plans or reviews.
+extracts JSON from fences/prose, retries once with a stricter prompt, then
+falls back to subtask lines or conservative review feedback. Parsing retries
+count toward the shared model-call budget.
 
 ## OpenAI
 
@@ -72,8 +74,8 @@ All runtime settings are in `config.yaml`: provider, model, `max_rounds` (0–2)
 `max_model_calls` (1–100, default 16), `output_folder` (must stay under `output/`),
 `timeout_seconds` (1–1800 seconds, default 60) and search result count.
 Every model attempt, including retries, counts
-toward the shared budget. Normal maximum: 12 successful calls for five subtasks
-and two revisions. Failed calls get two retries, then stop with an actionable error;
+toward the shared budget. Normal maximum: 10 successful calls for three subtasks
+and two revisions, before parsing or transport retries. Failed calls get two retries, then stop with an actionable error;
 tool failures get two retries and research continues with available evidence.
 Each model attempt prints and logs its elapsed seconds (excluding retry backoff).
 Failures print and log the HTTP status and response body, or exception type and
@@ -92,6 +94,18 @@ not an OS sandbox against hostile DNS rebinding. Web content is treated as
 untrusted evidence. Reviewer judgments are model-generated, not verified facts.
 Logs contain shortened task and model content: do not put secrets in your task.
 
+## CPU-friendly prompt limits
+
+Research uses at most two search results per subtask, at most 1,500 characters
+per fetched page, and notes under 120 words per subtask. Writer receives at most
+2,000 characters of notes (source URLs prioritized, space shared across subtasks)
+and targets about 400 words. Revision prompts cap the previous report at 2,500
+characters and feedback at 800. Reviewer also receives compact notes.
+Ollama options in `config.yaml` default to `num_ctx: 4096` and
+`num_predict: 700`; the latter bounds generated tokens per attempt. These limits
+reduce CPU work but do not guarantee latency, complete coverage, or report length.
+Older configs without these two settings use the same defaults.
+
 ## Testing
 
 ```bash
@@ -108,7 +122,7 @@ To run a deterministic full CLI demonstration and save a labeled sample report:
 python tests/run_offline_example.py
 ```
 
-Validation in the build environment: 27 tests passed, dependency checks passed,
+Validation in the build environment: 34 tests passed, dependency checks passed,
 and the offline CLI generated a report and log. A live model run could not finish:
 there was no OpenAI key or Ollama service. Live DuckDuckGo search failed after
 retries and the documentation fetch failed DNS resolution in this environment.
